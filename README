@@ -3,7 +3,7 @@
 
 VPyN is an open source minimalist darknet (F2F) written in python with gevent.
 
-VPyN is licensed under the GNU GPL license, Version 3
+VPyN is licensed under the GNU General Public License, Version 3
 (http://www.gnu.org/licenses/).
 
 Required
