@@ -1,0 +1,18 @@
+ VPyN
+======
+
+VPyN is an open source minimalist darknet (F2F) written in python with gevent.
+
+VPyN is licensed under the GNU GPL license, Version 3
+(http://www.gnu.org/licenses/).
+
+Required
+--------
+
+	- python 2.x
+
+	- greenlet
+		: easy_install install greenlet
+
+	- gevent
+		: easy_install install gevent
