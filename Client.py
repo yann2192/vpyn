@@ -1,35 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-########################################################################
-#  Client.py - (?)
-#  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-########################################################################
 
+#  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
+#  See LICENSE for details.
+
+import sys, os
 from gevent import select, monkey, spawn, Greenlet, GreenletExit, sleep, socket
+from base64 import b64encode
+from hashlib import md5
+from struct import pack, unpack
+from zlib import adler32
 from Proto import Proto
+from Index import Index
+from Config import *
 
 class Client(Proto):
     def __init__(self, vpn):
         self.vpn = vpn
 
-    def error(self, exp):
+    def close(self):
         try:
             self.sock.close()
-        except: 
+        except:
             pass
+
+    def error(self, exp):
+        self.close()
 
     def connect(self, host, port, pubkey):
         try:
@@ -46,3 +42,42 @@ class Client(Proto):
         iv = self.get_iv(pubkey)
         self.init_cipher(pubkey, myiv, iv)
 
+    def recv_file(self):
+        if self.srecvall(1) != "\x01":
+            self.ssend("\xFF")
+            raise Exception, "Bad Flags (0x01 expected)"
+        size = self.srecvall(4)
+        checksum = self.srecvall(4)
+        if adler32(size) != unpack('!I',checksum)[0]:
+            self.ssend("\xFF")
+            raise Exception, "Bad checksum"
+        size = unpack('!I', size)[0]
+        buffer = self.srecvall(size)
+        hash = self.srecvall(16)
+        if md5(buffer).digest() != hash:
+            self.ssend("\xFF")
+            raise Exception, "Bad md5 ..."
+        return buffer
+
+    def get_file(self, id, name):
+        path = os.path.join(inbox, name)
+        if os.path.exists(path):
+            raise Exception, "%s already exist ..." % path
+        self.ssend("\x02"+pack('!I',id))
+        buff = self.recv_file()
+        with open(path, "wb") as f:
+            f.write(buff)
+
+    def get_index(self, id):
+        index = Index(id)
+        buffer = index.get_xml().encode('utf-8')
+        hash = md5(buffer).digest()
+        self.ssend('\x03'+hash)
+        flag = self.srecvall(1)
+        if flag == "\x04":
+            buffer = self.recv_file()
+            index.set_xml(buffer)
+        elif flag == "\x05":
+            pass
+        else:
+            raise Exception, "Protocol Error"

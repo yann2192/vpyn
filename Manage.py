@@ -1,22 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-########################################################################
-#  Manage.py - (?)
+
 #  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-########################################################################
+#  See LICENSE for details.
 
 import sys, os
 import sqlite3
@@ -24,16 +10,13 @@ from hashlib import sha512, sha256
 from base64 import b64encode, b64decode
 from gevent import sleep
 from Crypto import *
-
-home = os.getenv('USERPROFILE') or os.getenv('HOME')
-database = '.VPyN.db'
-keyfile = 'key.aes'
+from Config import *
 
 class Manage():
     def __init__(self, pwd):
         self.db = sqlite3.connect(database)
         if os.path.exists(keyfile):
-            if os.path.getsize(keyfile) != 296: raise Exception, "File key.aes is corrupted !"
+            if os.path.getsize(keyfile) != 296: raise Exception, "File %s is corrupted !" % keyfile
             with open(keyfile, 'rb') as f:
                 iv = f.read(16)
                 hash = f.read(64)
@@ -54,15 +37,11 @@ class Manage():
                 f.write(self.ecc.pubkey_x+self.ecc.pubkey_y)
                 print "[+] ECC key created"
 
-    def connectTo(self, host, port, pubkey_x, pubkey_y):
-        res = FactClt(vpn, (pubkey_x,pubkey_y))
-        reactor.connectTCP(host, port, res)
-        return res
-
     def create_peers(self):
         c = self.db.cursor()
         c.execute('CREATE TABLE peers (num INTEGER PRIMARY KEY, id BLOB UNIQUE, nick TEXT UNIQUE, host TEXT, port INTEGER, pubkey_x BLOB, pubkey_y BLOB)')
         self.db.commit()
+        c.close()
 
     def add_peer(self, nick, host, port, pubkey_x, pubkey_y):
         c = self.db.cursor()
@@ -142,76 +121,3 @@ class Manage():
         
         finally:
             c.close()
-
-    def create_index(self):
-        c = self.db.cursor()
-        c.execute('CREATE TABLE _index (num INTEGER PRIMARY KEY, path TEXT UNIQUE)')
-        self.db.commit()
-
-    def add_folder(self, path):
-        c = self.db.cursor()
-        try:
-            c.execute('INSERT INTO _index VALUES(NULL, "%s")' % path)
-            self.db.commit()
-        except:
-            self.create_index()
-            c.execute('INSERT INTO _index VALUES(NULL, "%s")' % path)
-            self.db.commit()
-        finally:
-            c.close()
-
-    def rm_folder_by_num(self, num):
-        c = self.db.cursor()
-        try:
-            c.execute('DELETE FROM _index WHERE num=%d' % num)
-            self.db.commit()
-            return
-        finally:
-            c.close()
-
-    def get_index(self):
-        c = self.db.cursor()
-        res = []
-        try:
-            c.execute('SELECT * FROM _index')
-            self.db.commit()
-            for i in c:
-                res.append(i)
-        except:
-            pass
-        
-        finally:
-            c.close()
-            return res
-
-    def list_index(self):
-        res = []
-        try:
-            index = self.get_index()
-            for i in index:
-                sleep(0)
-                res += self._list_index(i[1])
-        finally:
-            return res
-
-    def _list_index(self, path):
-        res = []
-        try:
-            list = os.listdir(path)
-            for i in list:
-                sleep(0)
-                abs = os.path.join(path,i)
-                if os.path.isdir(abs):
-                    res += self._list_index(abs)
-                else:
-                    res.append(abs)
-        except:
-            pass
-        finally:
-            return res
-
-    def get_all_files(self):
-        all = self.get_all_peers()
-        for i in all:
-            sleep(0)
-            self.connectTo(self, i[3], i[4], i[5], i[6])

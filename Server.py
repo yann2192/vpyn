@@ -1,24 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-########################################################################
-#  Server.py - (?)
+
 #  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-########################################################################
+#  See LICENSE for details.
 
 from gevent import select, monkey, spawn, Greenlet, GreenletExit, sleep, socket
+from hashlib import md5
+from struct import pack, unpack
+from zlib import adler32
 from Proto import Proto
 
 class Server(Greenlet):
@@ -60,8 +49,7 @@ class ServerHandler(Greenlet, Proto):
         try:
             self.handshake()
             while True:
-                buffer = self.srecv()
-                print ">>",buffer
+                self.loop()
         except Exception as e:
             self.error(e)
 
@@ -77,3 +65,44 @@ class ServerHandler(Greenlet, Proto):
         iv = self.get_iv(pubkey)
         myiv = self.send_iv()
         self.init_cipher(pubkey, myiv, iv)
+
+    def loop(self):
+        buff = self.srecv(1)
+        if buff == "\x02":
+            self.request_for_file()
+        elif buff == "\x03":
+            self.request_for_index()
+
+    def request_for_file(self):
+        id = unpack('!I',self.srecvall(4))[0]
+        path = self.vpn.index.get_file_by_id(id)[3]
+        self.send_file(path)
+
+    def send_file(self, path):
+        if not os.path.exists(path) or not os.path.isfile(path):
+            self.ssend("\xFF")
+            raise Exception, "Bad file"
+        size = pack('!I', os.path.getsize(path))
+        checksum = pack('!I', adler32(size))
+        ctx = md5()
+        self.ssend("\x01"+size+checksum)
+        with open(path,'rb') as f:
+            while True:
+                sleep(0)
+                buff = f.read(4096)
+                if buff == "":
+                    break
+                ctx.update(buff)
+                self.ssend(buff)
+        self.ssend(ctx.digest())
+
+    def request_for_index(self):
+        tmp = self.srecvall(16)
+        index = self.vpn.index.get_xml().encode('utf-8')
+        hash = md5(index).digest()
+        if hash == tmp:
+            self.ssend("\x05")
+        else:
+            size = pack('!I', len(index))
+            checksum = pack('!I', adler32(size))
+            self.ssend("\x04\x01"+size+checksum+index+hash)

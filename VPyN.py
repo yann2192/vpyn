@@ -1,22 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-########################################################################
-#  VPyN.py - (?)
+
 #  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-########################################################################
+#  See LICENSE for details.
 
 import sys, os, fcntl
 from getpass import getpass
@@ -27,9 +13,9 @@ from Crypto import ECC_key
 from Manage import Manage
 from Server import Server
 from Client import Client
-
-if len(sys.argv) > 1: port = int(sys.argv[1])
-else: port = 8000
+from Index import *
+from Config import *
+from Progress import Progress
 
 class shell():
     commands = {
@@ -39,29 +25,11 @@ class shell():
         "listpeers" : "...",
         "rmpeer" : "...",
         "addfolder" : "...",
-        "getindex" : "...",
-        "listindex" : "...",
+        "listfolders" : "...",
+        "listmyfiles" : "...",
         "rmfolder" : "...",
-        "connect" : "..."
+        "getindex" : "...",
         }
-
-    def connect(self):
-        try:
-            num = int(self._input('Num : '))
-            peer = self.vpn.get_peer_by_num(num)
-            if peer == None:
-                raise Exception, "Unknown peer ..."
-            clt = Client(self.vpn)
-            print "Connecting to %s at %s:%d ... [Ctrl+c]" % (peer[1], peer[2], peer[3])
-            clt.connect(peer[2], peer[3], (peer[4],peer[5]))
-            print "Connected"
-            clt.ssend("test")
-            while 1:
-                sleep(0.1)
-        except Exception as e:
-            print e
-        except KeyboardInterrupt:
-            print "Connection close"
 
     def __init__(self, vpn):
         self.vpn = vpn
@@ -110,7 +78,7 @@ class shell():
         try:
             res = self.vpn.get_all_peers()
             if res == []:
-                print "No peers ..."
+                print "[!] No peers ..."
             else:
                 for i in res:
                     print "Num : %d" % i[0]
@@ -130,52 +98,78 @@ class shell():
         except Exception as e:
             print "[Error]",e
         else:
-            print "Peer deleted ..."
+            print "[+] Peer deleted ..."
 
     def addfolder(self):
         try:
-            path = os.path.abspath(self._input('Absolute path : '))
-            self.vpn.add_folder(path)
+            path = self._input('Absolute path : ')
+            c = Progress("Files add")
+            from time import time
+            a = time()
+            self.vpn.index.add_folder(path, c)
+            print "\n",time()-a
+            del time
         except Exception as e:
-            print "[Error]",e
+            print "\n[Error]",e
         else:
-            print "[+] Folder added : %s" % path
+            print "\n[+] Folder added : %s" % os.path.abspath(path)
 
-    def getindex(self):
+    def listfolders(self):
         try:
-            res = self.vpn.get_index()
+            res = self.vpn.index.get_index()
             if res == []:
-                print "Index empty ..."
+                print "[!] Index empty ..."
             else:
                 for i in res:
-                    print "Num : %d" % i[0]
+                    print "ID : %d" % i[0]
                     print "Path : %s" % i[1]
         except Exception as e:
             print "[Error]",e
 
-    def listindex(self):
+    def listmyfiles(self):
         try:
-            index = self.vpn.list_index()
-            if index is []:
-                print "Index empty ..."
+            index = self.vpn.index.list_index()
+            if index == []:
+                print "[!] Index empty ..."
             else :
                 for i in index:
-                    print "- %s" % i
-                    sleep(0.00001)
+                    sys.stdout.write("- %d : %s\n" % (i[0],i[3]))
+                    sys.stdout.flush()
+                    sleep(0.0001)
         except Exception as e:
             print e
 
     def rmfolder(self):
         try:
-            num = int(self._input('Num : '))
-            self.vpn.rm_folder_by_num(num)
+            id = int(self._input('ID : '))
+            if self.vpn.index.rm_folder_by_id(id) == 0:
+                raise Exception, "Unknown folder"
         except Exception as e:
             print "[Error]",e
         else:
-            print "Folder deleted ..."
+            print "[+] Folder deleted ..."
+
+    def getindex(self):
+        try:
+            num = int(self._input('Num : '))
+            peer = self.vpn.get_peer_by_num(num)
+            clt = Client(self.vpn)
+            print "[+] Connecting to %s at %s:%d ... [Ctrl+c]" % (peer[1], peer[2], peer[3])
+            clt.connect(peer[2], peer[3], (peer[4],peer[5]))
+            print "[+] Connected"
+            print "[+] Get Index ..."
+            clt.get_index(peer[0])
+            clt.close()
+        except Exception as e:
+            print "[Error]", e
+        except KeyboardInterrupt:
+            print "[!] Connection close"
+        else:
+            print "[+] Index downloaded"
 
 def main():
     my = Manage(getpass('Enter password: '))
+    my.index = MyIndex()
     print "ID : %s" % sha256(my.ecc.pubkey_x+my.ecc.pubkey_y).hexdigest()
     print "Public Key x : %s " % my.ecc.pubkey_x.encode('hex')
     print "Public Key y : %s" % my.ecc.pubkey_y.encode('hex')
@@ -184,7 +178,7 @@ def main():
     monkey.patch_all()
     fcntl.fcntl(sys.stdin, fcntl.F_SETFL, os.O_NONBLOCK)
     S = shell(my)
-    server = Server(8000, my)
+    server = Server(port, my)
     try:
         S.loop()
     except KeyboardInterrupt:
