@@ -61,8 +61,10 @@ class Client(Proto):
 
     def get_file(self, id, name):
         path = os.path.join(inbox, name)
-        if os.path.exists(path):
-            raise Exception, "%s already exist ..." % path
+        while os.path.exists(path):
+            name = "_"+name
+            path = os.path.join(inbox, name)
+            #raise Exception, "%s already exist ..." % path
         self.ssend("\x02"+pack('!I',id))
         buff = self.recv_file()
         with open(path, "wb") as f:

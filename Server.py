@@ -4,6 +4,7 @@
 #  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
 #  See LICENSE for details.
 
+import sys, os
 from gevent import select, monkey, spawn, Greenlet, GreenletExit, sleep, socket
 from hashlib import md5
 from struct import pack, unpack
@@ -67,7 +68,7 @@ class ServerHandler(Greenlet, Proto):
         self.init_cipher(pubkey, myiv, iv)
 
     def loop(self):
-        buff = self.srecv(1)
+        buff = self.srecvall(1)
         if buff == "\x02":
             self.request_for_file()
         elif buff == "\x03":

@@ -29,6 +29,8 @@ class shell():
         "listmyfiles" : "...",
         "rmfolder" : "...",
         "getindex" : "...",
+        "listfile" : "...",
+        "downloadfile": "...",
         }
 
     def __init__(self, vpn):
@@ -93,7 +95,7 @@ class shell():
 
     def rmpeer(self):
         try:
-            num = int(self._input('Num : '))
+            num = int(self._input('Peer Num : '))
             self.vpn.rm_peer_by_num(num)
         except Exception as e:
             print "[Error]",e
@@ -141,7 +143,7 @@ class shell():
 
     def rmfolder(self):
         try:
-            id = int(self._input('ID : '))
+            id = int(self._input('Folder ID : '))
             if self.vpn.index.rm_folder_by_id(id) == 0:
                 raise Exception, "Unknown folder"
         except Exception as e:
@@ -151,7 +153,7 @@ class shell():
 
     def getindex(self):
         try:
-            num = int(self._input('Num : '))
+            num = int(self._input('Peer Num : '))
             peer = self.vpn.get_peer_by_num(num)
             clt = Client(self.vpn)
             print "[+] Connecting to %s at %s:%d ... [Ctrl+c]" % (peer[1], peer[2], peer[3])
@@ -166,6 +168,39 @@ class shell():
             print "[!] Connection close"
         else:
             print "[+] Index downloaded"
+
+    def listfile(self):
+        try:
+            num = int(self._input('Peer Num : '))
+            id = self.vpn.get_peer_by_num(num)[0]
+            tmp = Index(id).list_index()
+            for i in tmp:
+                sleep(0)
+                sys.stdout.write("- %d : %s | size : %d bytes\n" % (i[0],i[1], i[2]))
+                sys.stdout.flush()
+                sleep(0.0001)
+        except Exception as e:
+            print "[Error]",e
+
+    def downloadfile(self):
+        try:
+            num = int(self._input('Peer Num : '))
+            peer = self.vpn.get_peer_by_num(num)
+            idfile = int(self._input('File ID : '))
+            name = Index(peer[0]).get_file_by_id(idfile)[1]
+            clt = Client(self.vpn)
+            print "[+] Connecting to %s at %s:%d ... [Ctrl+c]" % (peer[1], peer[2], peer[3])
+            clt.connect(peer[2], peer[3], (peer[4],peer[5]))
+            print "[+] Connected"
+            print '[+] Get File "%s" ...' % name
+            clt.get_file(idfile, name)
+            clt.close()
+        except Exception as e:
+            print "[Error]", e
+        except KeyboardInterrupt:
+            print "[!] Connection close"
+        else:
+            print "[+] File downloaded"
 
 def main():
     my = Manage(getpass('Enter password: '))
