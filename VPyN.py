@@ -106,11 +106,7 @@ class shell():
         try:
             path = self._input('Absolute path : ')
             c = Progress("Files add")
-            from time import time
-            a = time()
             self.vpn.index.add_folder(path, c)
-            print "\n",time()-a
-            del time
         except Exception as e:
             print "\n[Error]",e
         else:
@@ -135,7 +131,7 @@ class shell():
                 print "[!] Index empty ..."
             else :
                 for i in index:
-                    sys.stdout.write("- %d : %s\n" % (i[0],i[3]))
+                    sys.stdout.write("- %d : %s | size : %d bytes\n" % (i[0],i[3], i[2]))
                     sys.stdout.flush()
                     sleep(0.0001)
         except Exception as e:

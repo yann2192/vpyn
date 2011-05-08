@@ -159,8 +159,11 @@ class MyIndex(Index):
             path = os.path.abspath(path)
             if os.path.exists(path) is False:
                 raise Exception, "%s not found" % path
-            c.execute('INSERT INTO folders VALUES(NULL, "%s")' % path)
-            self.db.commit()
+            try:
+                c.execute('INSERT INTO folders VALUES(NULL, "%s")' % path)
+                self.db.commit()
+            except:
+                pass
             c.execute('SELECT id FROM folders WHERE name="%s"' % path)
             self.db.commit()
             id = c.fetchone()[0]
