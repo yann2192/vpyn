@@ -11,8 +11,8 @@ Required
 
 	- python 2.x
 
-	- greenlet
-		: easy_install install greenlet
+	- greenlet : http://pypi.python.org/pypi/greenlet
+		(easy_install install greenlet)
 
-	- gevent
-		: easy_install install gevent
+	- gevent : http://pypi.python.org/pypi/gevent/
+		(easy_install install gevent)
