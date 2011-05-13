@@ -4,7 +4,11 @@
 #  Copyright (C) 2011 Yann GUIBET <yannguibet@gmail.com>
 #  See LICENSE for details.
 
-import sys, os, fcntl
+import sys, os
+try:
+    import fcntl
+except:
+    from Win32_fcntl import fcntl
 from getpass import getpass
 from hashlib import sha256
 from base64 import b64encode, b64decode
@@ -171,7 +175,6 @@ class shell():
             id = self.vpn.get_peer_by_num(num)[0]
             tmp = Index(id).list_index()
             for i in tmp:
-                sleep(0)
                 sys.stdout.write("- %d : %s | size : %d bytes\n" % (i[0],i[1], i[2]))
                 sys.stdout.flush()
                 sleep(0.0001)
