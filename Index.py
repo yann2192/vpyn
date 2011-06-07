@@ -14,7 +14,7 @@ from Config import *
 
 class Index:
     def __init__(self, id):
-        self.db = sqlite3.connect(os.path.join(indexfolder,b64encode(id)))
+        self.db = sqlite3.connect(os.path.join(indexfolder,id.encode('hex')))
         try:
             self.create_index()
         except:

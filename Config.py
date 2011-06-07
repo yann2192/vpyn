@@ -30,4 +30,4 @@ elif os.path.isdir(indexfolder) is False:
 database = os.path.join(folder, 'VPyN.db')
 keyfile = os.path.join(folder, 'key.aes')
 myindex = os.path.join(folder, 'index.db')
-port = 8000
+port = 8888
